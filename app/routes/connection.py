@@ -368,40 +368,6 @@ def destroy_token(token_id):
                              
 # Configurations
 
-
-
-
-@bp.route('/get_session', methods=['POST'])
-def get_session():
-    token = request.headers.get("Authorization")
-    if not token:
-        return jsonify({"error": "Authorization header is missing"}), 401
-
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
-    user_info = verify_supabase_token(token)
-    
-    if user_info is None:
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.json
-    user_id = data.get('user_id')
-    
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
-    
-    try:
-        # Query the patients table using the provided user ID
-        patient = supabase.table('patients').select('*').eq('id', user_id).execute().data
-
-        if patient:
-            return jsonify({"patient": patient}), 200
-        else:
-            return jsonify({"message": "No patient found for the given user ID"}), 404
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-
 @bp.route('/refresh_session', methods=['POST'])
 def refresh_session():
     token = request.headers.get("Authorization")
