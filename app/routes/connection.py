@@ -74,7 +74,38 @@ def create_patient():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 201
+
+@bp.route('/get_patient', methods=['POST'])
+def get_session():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the header
+    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    user_info = verify_supabase_token(token)
     
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    
+    try:
+        # Query the patients table using the provided email
+        patient = supabase.table('patients').select('*').eq('email', email).execute().data
+        
+        if not patient:
+            return jsonify({"message": "No patient found with the provided email"}), 404
+
+        return jsonify(patient), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+ 
 @bp.route('/create_appointment', methods=['POST'])
 def create_appointment(appointment=None):
     token = request.headers.get("Authorization")
