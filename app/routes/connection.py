@@ -43,7 +43,7 @@ def create_patient():
     
     data = request.json
     
-    # Extract patient data from request
+    # Extract patient data from request, default to None if not provided
     name = data.get('name')
     aadhar_number = data.get('aadhar_number')
     email = data.get('email')
@@ -52,7 +52,14 @@ def create_patient():
     emergency_contact = data.get('emergency_contact')
     medical_history = data.get('medical_history')
     insurance_number = data.get('insurance_number')
-    
+    dob = data.get('dob')
+    gender = data.get('gender')
+    occupation = data.get('occupation')
+    marital_status = data.get('marital_status')
+    blood_group = data.get('blood_group')
+    allergies = data.get('allergies')
+    family_medical_history = data.get('family_medical_history')
+
     # Check if required fields are provided
     if not all([name, aadhar_number, email, phone]):
         return jsonify({"message": "Missing required fields"}), 400
@@ -67,13 +74,21 @@ def create_patient():
             'address': address,
             'emergency_contact': emergency_contact,
             'medical_history': medical_history,
-            'insurance_number': insurance_number
+            'insurance_number': insurance_number,
+            'dob': dob,
+            'gender': gender,
+            'occupation': occupation,
+            'marital_status': marital_status,
+            'blood_group': blood_group,
+            'allergies': allergies,
+            'family_medical_history': family_medical_history
         }).execute()
 
         return jsonify({"message": "Patient created successfully"}), 201
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 201
+        return jsonify({"error": str(e)}), 500
+
 
 @bp.route('/get_patient', methods=['POST'])
 def get_session():
