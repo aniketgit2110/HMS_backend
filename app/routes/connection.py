@@ -89,6 +89,43 @@ def create_patient():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@bp.route('/update_patient', methods=['PUT'])
+def update_patient():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the header
+    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    user_info = verify_supabase_token(token)
+    
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    
+    # Extract patient data from request, default to None if not provided
+    patient_id = data.get('patient_id')
+    if not patient_id:
+        return jsonify({"error": "Missing required field: patient_id"}), 400
+
+    # Check for optional fields to update
+    updates = {key: value for key, value in data.items() if key != 'patient_id' and value is not None}
+
+    try:
+        # Update the patient in the database
+        response = supabase.table('patients').update(updates).eq('patient_id', patient_id).execute()
+
+        # Check if the update was successful by checking response.data
+        if response.data:
+            return jsonify({"message": "Patient updated successfully"}), 200
+        else:
+            return jsonify({"error": "Patient not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 @bp.route('/get_patient', methods=['POST'])
 def get_session():
