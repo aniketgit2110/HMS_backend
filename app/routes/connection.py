@@ -10,6 +10,8 @@ from flask import Blueprint, request, jsonify
 from supabase import create_client
 from app.config import SUPABASE_URL, SUPABASE_KEY
 import requests
+from werkzeug.utils import secure_filename
+from io import BytesIO
 
 bp = Blueprint('connection', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -124,6 +126,111 @@ def update_patient():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route('/profile_pic', methods=['POST', 'GET', 'DELETE'])
+def handle_profile_pic():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the header
+    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    user_info = verify_supabase_token(token)
+    
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    patient_id = request.args.get('patient_id')
+    if not patient_id:
+        return jsonify({"error": "Missing required field: patient_id"}), 400
+
+    # Upload or update profile picture
+    if request.method == 'POST':
+        # Check if 'file' is in the request files
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part in the request"}), 400
+
+        file = request.files['file']
+
+        # Ensure a file is selected
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        # Secure the filename and create the full path for the image in the bucket
+        filename = secure_filename(file.filename)
+        file_path = f'profile_pics/{filename}'
+
+        try:
+            # Upload the file to the bucket (patient/profile_pics folder)
+            file_bytes = file.read()  # Read file as bytes
+            # Upload to Supabase (Supabase storage expects bytes directly)
+            upload_response = supabase.storage.from_('patient').upload(file_path, file_bytes)
+            public_url_response = supabase.storage.from_('patient').get_public_url(file_path)
+            if public_url_response and public_url_response.endswith('?'):
+                public_url_response = public_url_response[:-1] 
+            # Update the patient's record with the image URL
+            update_response = supabase.table('patients').update({
+                'profile_pic_url': public_url_response
+            }).eq('patient_id', patient_id).execute()
+
+            if update_response.data:
+                return jsonify({"message": "Profile picture uploaded/updated successfully", "url": public_url_response}), 200
+            else:
+                return jsonify({"error": "Patient not found"}), 404
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # Fetch profile picture URL
+    elif request.method == 'GET':
+        try:
+            # Fetch the patient record from the database
+            response = supabase.table('patients').select('profile_pic_url').eq('patient_id', patient_id).execute()
+            
+            if response.data:
+                profile_pic_url = response.data[0].get('profile_pic_url')
+                if profile_pic_url:
+                    return jsonify({"profile_pic_url": profile_pic_url}), 200
+                else:
+                    return jsonify({"message": "No profile picture found"}), 404
+            else:
+                return jsonify({"error": "Patient not found"}), 404
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # Delete profile picture
+    elif request.method == 'DELETE':
+        try:
+            # Fetch the patient record to get the existing profile_pic_url
+            response = supabase.table('patients').select('profile_pic_url').eq('patient_id', patient_id).execute()
+            
+            if response.data:
+                profile_pic_url = response.data[0].get('profile_pic_url')
+                if profile_pic_url:
+                    # Extract the file path from the public URL (after the domain part)
+                    file_path = profile_pic_url.split('/storage/v1/object/public/patient/')[1]
+                    
+                    # Delete the file from the bucket
+                    delete_response = supabase.storage.from_('patient').remove([file_path])
+                    
+                    if delete_response.get('error'):
+                        return jsonify({"error": delete_response['error']['message']}), 500
+
+                    # Remove the image URL from the patient's record
+                    supabase.table('patients').update({
+                        'profile_pic_url': None
+                    }).eq('patient_id', patient_id).execute()
+
+                    return jsonify({"message": "Profile picture deleted successfully"}), 200
+                else:
+                    return jsonify({"message": "No profile picture found to delete"}), 404
+            else:
+                return jsonify({"error": "Patient not found"}), 404
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 
 
@@ -420,18 +527,8 @@ def destroy_token(token_id):
                              
 # Configurations
 
-@bp.route('/refresh_session', methods=['POST'])
+@bp.route('/refresh_session', methods=[''])
 def refresh_session():
-    token = request.headers.get("Authorization")
-    if not token:
-        return jsonify({"error": "Authorization header is missing"}), 401
-
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
-    user_info = verify_supabase_token(token)
-    
-    if user_info is None:
-        return jsonify({"error": "Unauthorized"}), 401
     try:
         response = supabase.auth.refresh_session()
         return jsonify(response), 200
