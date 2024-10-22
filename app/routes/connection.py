@@ -927,6 +927,53 @@ def get_department_by_id():
 
 
 
+# Route for handling all counter operations
+@bp.route('/counters', methods=['GET'])
+def get_counters_with_tokens():
+    token = request.headers.get("Authorization")
+    
+    # Authorization check
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+    
+    # Extract the token from the "Bearer <token>"
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+    
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Handle GET request - Retrieve all counters with their tokens
+    if request.method == 'GET':
+        try:
+            # Fetch all counters from the database
+            response = supabase.table('counters').select('*').execute()
+            
+            if response.data:  # Check if data exists
+                counters = response.data
+                
+                # Structure the response to include service_type and allocated_tokens
+                result = []
+                for counter in counters:
+                    result.append({
+                        "counter_id": counter['counter_id'],
+                        "service_type": counter['service_type'],
+                        "enabled": counter['enabled'],
+                        "allocated_tokens": counter['allocated_tokens'],
+                        "expected_time": counter['expected_time'],
+                        "token_start_time": counter['token_start_time'],
+                    })
+                
+                return jsonify(result), 200
+            else:
+                return jsonify({"message": "No counters found."}), 404
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+
+
+
 
 
 
