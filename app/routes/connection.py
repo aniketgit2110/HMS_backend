@@ -447,12 +447,12 @@ def create_appointment(appointment=None):
     # Extract appointment data
     patient_id = data.get('patient_id')
     hospital_id = data.get('hospital_id')
+    department_id = data.get('department_id')
     doctor_id = data.get('doctor_id')
     date_time = data.get('date_time')  # Expected in ISO8601 format
     status = data.get('status', 'scheduled')  # Default to 'scheduled'
     priority_level = data.get('priority_level', 'normal')  # Default to 'normal'
-    service_type = data.get('department_name')  # Default to 'General'
-    mobile_number = data.get('mobile_number', 123456789)  # Default to a sample number
+    service_type = data.get('department_name')
     slot_id = data.get('slot_id')
 
     # Validate priority level and status values against allowed constraints
