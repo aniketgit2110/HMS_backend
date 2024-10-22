@@ -481,12 +481,12 @@ def create_appointment(appointment=None):
         appointment_result = supabase.table('appointments').insert({
             'patient_id': patient_id,
             'hospital_id': hospital_id,
+            'department_id' : department_id,
             'doctor_id': doctor_id,
             'date_time': date_time,
             'status': status,
             'priority_level': priority_level,
             'service_type': service_type,
-            'mobile_number': mobile_number,
             'slot_id': slot_id,
             'token_id' : token_id
         }).execute()
