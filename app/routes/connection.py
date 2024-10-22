@@ -446,11 +446,12 @@ def create_appointment(appointment=None):
 
     # Extract appointment data
     patient_id = data.get('patient_id')
+    hospital_id = data.get('hospital_id')
     doctor_id = data.get('doctor_id')
     date_time = data.get('date_time')  # Expected in ISO8601 format
     status = data.get('status', 'scheduled')  # Default to 'scheduled'
     priority_level = data.get('priority_level', 'normal')  # Default to 'normal'
-    service_type = data.get('service_type', 'General')  # Default to 'General'
+    service_type = data.get('department_name')  # Default to 'General'
     mobile_number = data.get('mobile_number', 123456789)  # Default to a sample number
     slot_id = data.get('slot_id')
 
@@ -479,6 +480,7 @@ def create_appointment(appointment=None):
         # Insert into appointments table
         appointment_result = supabase.table('appointments').insert({
             'patient_id': patient_id,
+            'hospital_id': hospital_id,
             'doctor_id': doctor_id,
             'date_time': date_time,
             'status': status,
