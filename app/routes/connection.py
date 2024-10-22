@@ -90,8 +90,8 @@ def create_patient():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+        
 @bp.route('/get_patient_by_id', methods=['POST'])
-
 def get_patient_by_id():
     token = request.headers.get("Authorization")
     if not token:
