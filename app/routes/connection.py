@@ -117,7 +117,7 @@ def get_patient_by_id():
         if not patient:
             return jsonify({"message": "No patient found with the provided ID"}), 404
 
-        return jsonify(patient), 200
+        return jsonify(patient.data), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
