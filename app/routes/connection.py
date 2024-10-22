@@ -851,7 +851,7 @@ def get_hospital_by_id():
     
     try:
         # Fetch hospital details for the given hospital_id
-        response = supabase.table('hospitals').select('*').eq('hospital_id', hospital_id).execute()
+        response = supabase.table('hospitals').select('*').eq('id', hospital_id).execute()
         
         # Check if the response contains data
         if response.data:
@@ -881,7 +881,7 @@ def get_doctor_by_id():
     
     try:
         # Fetch doctor details for the given doctor_id
-        response = supabase.table('doctors').select('*').eq('doctor_id', doctor_id).execute()
+        response = supabase.table('doctors').select('*').eq('id', doctor_id).execute()
         
         # Check if the response contains data
         if response.data:
@@ -912,7 +912,7 @@ def get_department_by_id():
     
     try:
         # Fetch department details for the given department_id
-        response = supabase.table('departments').select('*').eq('department_id', department_id).execute()
+        response = supabase.table('departments').select('*').eq('id', department_id).execute()
         
         # Check if the response contains data
         if response.data:
