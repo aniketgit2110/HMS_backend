@@ -833,65 +833,66 @@ def get_appointments_by_patient_id():
         return jsonify({"error": str(e)}), 500
 
 
-@bp.route('/get_hospital_by_id', methods=['POST'])
-def get_hospital_by_id():
-    token = request.headers.get("Authorization")
-    if not token:
-        return jsonify({"error": "Authorization header is missing"}), 401
-
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
-    
-    # Get hospital_id from the JSON body
-    data = request.json
-    hospital_id = data.get('hospital_id')
-    
-    if not hospital_id:
-        return jsonify({"error": "hospital_id is required"}), 400
-    
-    try:
-        # Fetch hospital details for the given hospital_id
-        response = supabase.table('hospitals').select('*').eq('id', hospital_id).execute()
-        
-        # Check if the response contains data
-        if response.data:
-            return jsonify(response.data), 200
-        else:
-            return jsonify({"message": "Hospital not found."}), 404
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @bp.route('/get_doctor_by_id', methods=['POST'])
 def get_doctor_by_id():
     token = request.headers.get("Authorization")
     if not token:
         return jsonify({"error": "Authorization header is missing"}), 401
 
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
-    
-    # Get doctor_id from the JSON body
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.json
     doctor_id = data.get('doctor_id')
-    
+
     if not doctor_id:
-        return jsonify({"error": "doctor_id is required"}), 400
-    
+        return jsonify({"error": "Doctor ID is required"}), 400
+
     try:
-        # Fetch doctor details for the given doctor_id
-        response = supabase.table('doctors').select('*').eq('id', doctor_id).execute()
+        result = supabase.table('doctors').select('*').eq('id', doctor_id).execute()
+        doctor = result if isinstance(result, list) else result.data
         
-        # Check if the response contains data
-        if response.data:
-            return jsonify(response.data), 200
-        else:
-            return jsonify({"message": "Doctor not found."}), 404
+        if not doctor:
+            return jsonify({"message": "No doctor found with the provided ID"}), 404
+
+        return jsonify(doctor), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@bp.route('/get_hospital_by_id', methods=['POST'])
+def get_hospital_by_id():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    hospital_id = data.get('hospital_id')
+
+    if not hospital_id:
+        return jsonify({"error": "Hospital ID is required"}), 400
+
+    try:
+        result = supabase.table('hospitals').select('*').eq('id', hospital_id).execute()
+        hospital = result if isinstance(result, list) else result.data
+        
+        if not hospital:
+            return jsonify({"message": "No hospital found with the provided ID"}), 404
+
+        return jsonify(hospital), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.route('/get_department_by_id', methods=['POST'])
@@ -900,28 +901,30 @@ def get_department_by_id():
     if not token:
         return jsonify({"error": "Authorization header is missing"}), 401
 
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
-    
-    # Get department_id from the JSON body
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.json
     department_id = data.get('department_id')
-    
+
     if not department_id:
-        return jsonify({"error": "department_id is required"}), 400
-    
+        return jsonify({"error": "Department ID is required"}), 400
+
     try:
-        # Fetch department details for the given department_id
-        response = supabase.table('departments').select('*').eq('id', department_id).execute()
+        result = supabase.table('departments').select('*').eq('id', department_id).execute()
+        department = result if isinstance(result, list) else result.data
         
-        # Check if the response contains data
-        if response.data:
-            return jsonify(response.data), 200
-        else:
-            return jsonify({"message": "Department not found."}), 404
+        if not department:
+            return jsonify({"message": "No department found with the provided ID"}), 404
+
+        return jsonify(department), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
