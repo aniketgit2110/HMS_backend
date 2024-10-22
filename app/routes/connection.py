@@ -752,3 +752,47 @@ def protected():
 def Welcome():
     return jsonify({"message": "You have successfully connected"}), 200
 
+
+
+
+
+
+
+#other routes
+@bp.route('/get_departments', methods=['POST'])
+def get_departments_by_hospital():
+    token = request.headers.get("Authorization")
+    
+    # Authorization check
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the "Bearer <token>"
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+    
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json  # Get the JSON body from the request
+    hospital_id = data.get('hospital_id')  # Extract hospital_id from the body
+    
+    try:
+        if hospital_id:
+            # Fetch departments where hospital_id matches
+            response = supabase.table('departments').select('id, hospital_id, name, description').eq('hospital_id', hospital_id).execute()
+        else:
+            # Fetch all departments if no hospital_id is provided
+            response = supabase.table('departments').select('id, hospital_id, name, description').execute()
+
+        if response.data:  # If departments are found
+            departments = response.data
+            return jsonify(departments), 200
+        else:
+            return jsonify({"message": "No departments found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
