@@ -378,7 +378,7 @@ def get_appointments_by_patient():
     # Extract the token from the header
     token = token.split(" ")[1]  # Get token from "Bearer <token>"
     
-    # Get patient_id from query parameters
+    # Get patient_id from qery parameters
     patient_id = request.args.get('patient_id')
     if not patient_id:
         return jsonify({"error": "patient_id is required"}), 400
@@ -800,6 +800,38 @@ def get_doctors_by_department_and_hospital():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@bp.route('/get_appointments_bypatientid', methods=['POST'])
+def get_appointments_by_patient_id():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the header
+    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    
+    # Get patient_id from the JSON body
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+    
+    try:
+        # Fetch appointments for the given patient_id
+        response = supabase.table('appointments').select('*').eq('patient_id', patient_id).execute()
+        
+        # Check if the response contains data
+        if response.data:
+            return jsonify(response.data), 200
+        else:
+            return jsonify({"message": "No appointments found for this patient."}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 
