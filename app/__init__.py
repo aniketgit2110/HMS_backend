@@ -1,6 +1,6 @@
 # app/__init__.py
 from flask import Flask
-from app.routes import auth, todos, connection, ocr
+from app.routes import auth, todos, connection, ocr, schedular_opd
 import os
 
 def create_app():
@@ -15,5 +15,6 @@ def create_app():
     app.register_blueprint(todos.bp)      # Prefix for todos: '/todos'
     app.register_blueprint(connection.bp) # Prefix for connection: '/connection'
     app.register_blueprint(ocr.bp) 
+    app.register_blueprint(schedular_opd.bp) 
 
     return app

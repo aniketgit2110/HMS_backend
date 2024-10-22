@@ -6,14 +6,20 @@ import pytz
 import os
 from datetime import timedelta
 import requests
-import json
+import json,random
 from werkzeug.utils import secure_filename
 from io import BytesIO
 import google.generativeai as genai
+from sinch import SinchClient
 from app.config import SUPABASE_URL, SUPABASE_KEY
 
 bp = Blueprint('ocr', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+sinch_client = SinchClient(
+    key_id="e86a4385-c576-4e96-8bd1-e1513bf58a08",
+    key_secret="M3S.a-rF4Jmuwt4L6rM~AX_RBG",
+    project_id="5f27a568-815e-4d81-bb92-93d15ba17c89"
+)
 
 def verify_supabase_token(token):
     url = f"{SUPABASE_URL}/auth/v1/user"
@@ -169,3 +175,27 @@ def upload_pdf():
             return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown error')}), 500
     else:
         return jsonify({'Error': 'Invalid file type. Please upload a PDF file.'}), 400
+    
+# Route to generate and send OTP
+@bp.route('/send-otp/<phone_number>', methods=['GET'])
+def send_otp(phone_number):
+    # Generate a 4-digit OTP
+    otp = random.randint(1000, 9999)
+    
+    # SMS body with the OTP
+    message_body = f"Your OTP is {otp}. Please use it to verify your identity."
+
+    try:
+        # Send SMS via Sinch
+        send_batch_response = sinch_client.sms.batches.send(
+            body=message_body,
+            to=[f"+{phone_number}"],  # Assuming you pass the phone number in international format (e.g., +91 for India)
+            from_="447537404817",  # Your Sinch sender ID or phone number
+            delivery_report="none"
+        )
+        
+        # Return a success message with the OTP (for demo purposes)
+        return jsonify({"message": "OTP sent successfully!", "otp": otp, "send_batch_response": send_batch_response}), 200
+
+    except Exception as e:
+        return jsonify({"message": "Failed to send OTP", "error": str(e)}), 500
