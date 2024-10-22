@@ -368,40 +368,6 @@ def manage_hospitals():
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-# Route to get a list of doctors based on hospital_id
-@bp.route('/get_doctors', methods=['GET'])
-def get_doctors_by_hospital():
-    token = request.headers.get("Authorization")
-    
-    # Authorization check
-    if not token:
-        return jsonify({"error": "Authorization header is missing"}), 401
-
-    # Extract the token from the "Bearer <token>"
-    token = token.split(" ")[1]
-    user_info = verify_supabase_token(token)
-    
-    if user_info is None:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    # Get hospital_id from request arguments
-    hospital_id = request.args.get('hospital_id')
-    
-    if not hospital_id:
-        return jsonify({"message": "hospital_id is required"}), 400
-
-    try:
-        # Fetch doctors where hospital_id matches
-        response = supabase.table('doctors').select('*').eq('hospital_id', hospital_id).execute()
-
-        if response.data:  # If doctors are found
-            doctors = response.data
-            return jsonify(doctors), 200
-        else:
-            return jsonify({"error": response.error}), 500
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
     
 @bp.route('/get_appointments', methods=['GET'])
 def get_appointments_by_patient():
@@ -793,6 +759,46 @@ def get_departments_by_hospital():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+#route to get doctor list based on first hospital id then department id
+@bp.route('/get_doctors', methods=['POST'])
+def get_doctors_by_department_and_hospital():
+    token = request.headers.get("Authorization")
+
+    # Authorization check
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from "Bearer <token>"
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json  # Get the JSON body from the request
+    department_id = data.get('department_id')
+    hospital_id = data.get('hospital_id')
+
+    if not department_id or not hospital_id:
+        return jsonify({"error": "Both department_id and hospital_id are required"}), 400
+
+    try:
+        # Fetch doctors where department_id and hospital_id match
+        response = supabase.table('doctors').select('id, department_id, hospital_id, name, specialization, contact') \
+            .eq('department_id', department_id).eq('hospital_id', hospital_id).execute()
+
+        if response.data:  # If doctors are found
+            doctors = response.data
+            return jsonify(doctors), 200
+        else:
+            return jsonify({"message": "No doctors found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 
