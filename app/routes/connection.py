@@ -112,15 +112,17 @@ def get_patient_by_id():
     
     try:
         # Query the patients table using the provided patient_id
-        patient = supabase.table('patients').select('*').eq('patient_id', patient_id).execute().data
+        result = supabase.table('patients').select('*').eq('patient_id', patient_id).execute()
+        patient = result if isinstance(result, list) else result.data  # Adjust based on response type
         
         if not patient:
             return jsonify({"message": "No patient found with the provided ID"}), 404
 
-        return jsonify(patient.data), 200
+        return jsonify(patient), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
         
 @bp.route('/update_patient', methods=['PUT'])
 def update_patient():
