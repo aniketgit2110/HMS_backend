@@ -986,9 +986,9 @@ def get_all_updates():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        # Fetching updates with hospital names
-        result = supabase.table('updates').select('updates.id , hospitals(name), updates.time, updates.post,updates.link, updates.image_url')\
-            .eq('hospitals.id', 'hospital_id').execute()
+        # Corrected query to join tables and select all columns from both tables
+        result = supabase.table('updates').select('*, hospitals!inner(name)')\
+            .execute()
         
         updates = result if isinstance(result, list) else result.data
         
@@ -999,6 +999,7 @@ def get_all_updates():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
