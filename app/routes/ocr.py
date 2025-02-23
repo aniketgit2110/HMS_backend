@@ -84,6 +84,8 @@ def extract_information(parsed_text):
     prompt = f"""
     Extract the following information in JSON format only:
     Name
+    Gender
+    DOB
     Address
     Phone Number
     Aadhaar Number
@@ -91,7 +93,7 @@ def extract_information(parsed_text):
 
     Text: {parsed_text}
     
-    Response format: {{"name": "", "address": "", "phone_number": "", "aadhaar_number": "", "other_information": ""}}
+    Response format: {{"name": "", "address": "", "Gender":"", "DOB":"", "phone_number": "", "aadhaar_number": "", "other_information": ""}}
     """
     try:
        chat_session = model.start_chat(history=[])
