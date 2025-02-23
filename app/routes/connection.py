@@ -973,7 +973,7 @@ def get_counters_with_tokens():
 
 
 
-@bp.route('/get_all_updates', methods=['POST'])
+@bp.route('/get_all_updates', methods=['GET'])
 def get_all_updates():
     token = request.headers.get("Authorization")
     if not token:
@@ -987,15 +987,14 @@ def get_all_updates():
 
     try:
         # Fetch all updates from the updates table
-        updates_result = supabase.table('updates').select('*').execute()
-        print('hi')
-        print(updates_result.data)
+        response = supabase.table('updates').select('*').execute()
 
         # Check if there are no updates
-        if not updates_result:
+        if not response.data:
             return jsonify({"message": "No updates found"}), 404
-        
-        updates = updates_result if isinstance(updates_result, list) else updates_result.data
+
+        updates = response.data  # Get the data from the response
+        print(updates)
 
         # Fetch hospital data for each update and bind it
         for update in updates:
@@ -1004,8 +1003,8 @@ def get_all_updates():
             # Fetch the hospital data using the hospital_id
             hospital_result = supabase.table('hospitals').select('name').eq('id', hospital_id).execute()
 
-            if hospital_result:
-                hospital = hospital_result if isinstance(hospital_result, list) else hospital_result.data
+            if hospital_result.data:
+                hospital = hospital_result.data
                 # Bind hospital name to the update
                 update['name'] = hospital[0]['name'] if hospital else 'Unknown Hospital'
             else:
