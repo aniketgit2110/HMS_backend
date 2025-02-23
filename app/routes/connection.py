@@ -988,7 +988,8 @@ def get_all_updates():
     try:
         # Fetch all updates from the updates table
         updates_result = supabase.table('updates').select('*').execute()
-        print('updates result' + updates_result)
+        print('hi')
+        print(updates_result.data)
 
         # Check if there are no updates
         if not updates_result:
@@ -1006,9 +1007,9 @@ def get_all_updates():
             if hospital_result:
                 hospital = hospital_result if isinstance(hospital_result, list) else hospital_result.data
                 # Bind hospital name to the update
-                update['hospital_name'] = hospital[0]['name'] if hospital else 'Unknown Hospital'
+                update['name'] = hospital[0]['name'] if hospital else 'Unknown Hospital'
             else:
-                update['hospital_name'] = 'Unknown Hospital'
+                update['name'] = 'Unknown Hospital'
 
         return jsonify(updates), 200
 
