@@ -986,19 +986,34 @@ def get_all_updates():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        # Corrected query to join tables and select all columns from both tables
-        result = supabase.table('updates').select('*, hospitals!inner(name)')\
-            .execute()
-        
-        updates = result if isinstance(result, list) else result.data
-        
-        if not updates:
+        # Fetch all updates from the updates table
+        updates_result = supabase.table('updates').select('*').execute()
+
+        # Check if there are no updates
+        if not updates_result:
             return jsonify({"message": "No updates found"}), 404
+        
+        updates = updates_result if isinstance(updates_result, list) else updates_result.data
+
+        # Fetch hospital data for each update and bind it
+        for update in updates:
+            hospital_id = update.get('hospital_id')  # Get hospital_id from each update
+
+            # Fetch the hospital data using the hospital_id
+            hospital_result = supabase.table('hospitals').select('name').eq('id', hospital_id).execute()
+
+            if hospital_result:
+                hospital = hospital_result if isinstance(hospital_result, list) else hospital_result.data
+                # Bind hospital name to the update
+                update['hospital_name'] = hospital[0]['name'] if hospital else 'Unknown Hospital'
+            else:
+                update['hospital_name'] = 'Unknown Hospital'
 
         return jsonify(updates), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
