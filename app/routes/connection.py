@@ -991,8 +991,8 @@ def get_update_by_hospital_name():
         return jsonify({"error": "Hospital name is required"}), 400
 
     try:
-        # Query to find updates by hospital name
-        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post')\
+        # Query to find updates by hospital name, including image_url
+        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post, updates.image_url')\
             .ilike('hospitals.name', f"%{hospital_name}%")\
             .join('hospitals', 'hospital_id', 'id').execute()
         
@@ -1020,8 +1020,8 @@ def get_all_updates():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        # Query to get all updates
-        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post')\
+        # Query to get all updates, including image_url
+        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post, updates.image_url')\
             .join('hospitals', 'hospital_id', 'id').execute()
         
         updates = result if isinstance(result, list) else result.data
