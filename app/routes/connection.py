@@ -972,6 +972,68 @@ def get_counters_with_tokens():
             return jsonify({"error": str(e)}), 500
 
 
+@bp.route('/get_update_by_hospital_name', methods=['POST'])
+def get_update_by_hospital_name():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    hospital_name = data.get('hospital_name')
+
+    if not hospital_name:
+        return jsonify({"error": "Hospital name is required"}), 400
+
+    try:
+        # Query to find updates by hospital name
+        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post')\
+            .ilike('hospitals.name', f"%{hospital_name}%")\
+            .join('hospitals', 'hospital_id', 'id').execute()
+        
+        updates = result if isinstance(result, list) else result.data
+        
+        if not updates:
+            return jsonify({"message": "No updates found for the provided hospital name"}), 404
+
+        return jsonify(updates), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route('/get_all_updates', methods=['POST'])
+def get_all_updates():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        # Query to get all updates
+        result = supabase.table('updates').select('hospitals.name, updates.time, updates.post')\
+            .join('hospitals', 'hospital_id', 'id').execute()
+        
+        updates = result if isinstance(result, list) else result.data
+        
+        if not updates:
+            return jsonify({"message": "No updates found"}), 404
+
+        return jsonify(updates), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 
