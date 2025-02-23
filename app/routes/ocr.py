@@ -210,6 +210,7 @@ def upload_pdf():
     except json.JSONDecodeError:
         return jsonify({"error": "Failed to decode JSON from Gemini response."}), 500
     formatted_json = json.dumps(json_data, indent=4)
+    print(formatted_json)
     return formatted_json, 200
     
 # Route to generate and send OTP
