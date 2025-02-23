@@ -123,7 +123,46 @@ def get_patient_by_id():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@bp.route('/update_patient_verified', methods=['POST'])
+def update_patient_verified():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    # Extract the token from the header
+    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    user_info = verify_supabase_token(token)
+    
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "Patient ID is required"}), 400
+
+    try:
+        # Query the patients table to check if the patient exists
+        result = supabase.table('patients').select('*').eq('patient_id', patient_id).execute()
+        patient = result if isinstance(result, list) else result.data  # Adjust based on response type
         
+        if not patient:
+            return jsonify({"message": "No patient found with the provided ID"}), 404
+
+        # Update the 'verified' field to true for the patient
+        update_result = supabase.table('patients').update({"verified": True}).eq('patient_id', patient_id).execute()
+        
+        if update_result.status_code == 200:
+            return jsonify({"message": "Patient verified successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to update patient verification status"}), 500
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route('/update_patient', methods=['PUT'])
 def update_patient():
     token = request.headers.get("Authorization")
