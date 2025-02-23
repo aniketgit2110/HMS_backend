@@ -988,6 +988,7 @@ def get_all_updates():
     try:
         # Fetch all updates from the updates table
         updates_result = supabase.table('updates').select('*').execute()
+        print('updates result' + updates_result)
 
         # Check if there are no updates
         if not updates_result:
