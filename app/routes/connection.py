@@ -987,7 +987,7 @@ def get_all_updates():
 
     try:
         # Fetching updates with hospital names
-        result = supabase.table('updates').select('hospitals(name), updates.time, updates.post, updates.image_url')\
+        result = supabase.table('updates').select('updates.id , hospitals(name), updates.time, updates.post,updates.link, updates.image_url')\
             .eq('hospitals.id', 'hospital_id').execute()
         
         updates = result if isinstance(result, list) else result.data
