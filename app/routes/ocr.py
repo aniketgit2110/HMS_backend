@@ -12,6 +12,7 @@ from io import BytesIO
 import google.generativeai as genai
 from sinch import SinchClient
 from app.config import SUPABASE_URL, SUPABASE_KEY
+import fitz  # PyMuPDF
 
 bp = Blueprint('ocr', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -30,6 +31,20 @@ def verify_supabase_token(token):
     response = requests.get(url, headers=headers)
     return response.json() if response.status_code == 200 else None
 
+def extract_text_from_pdf_file(file):
+    """
+    Extract text from a PDF file using PyMuPDF.
+    The file parameter is a Flask FileStorage object.
+    """
+    # Read the entire file as bytes
+    file_bytes = file.read()
+    file.seek(0)  # reset pointer for subsequent operations (like OCR)
+    # Open the PDF from bytes
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
 
 # Utility function to interact with Supabase
 def execute_query(sql):
@@ -158,23 +173,42 @@ def upload_pdf():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    if file and file.filename.endswith('.pdf'):
-        # Perform OCR
-        ocr_result = ocr_post(ocr_api_key, file=file)
+    # Determine file type based on filename extension (you could also use MIME type)
+    filename_lower = file.filename.lower()
 
-        # Check if OCR was successful
-        if ocr_result['OCRExitCode'] == 1 and not ocr_result['IsErroredOnProcessing']:
-            parsed_text = ocr_result['ParsedResults'][0]['ParsedText']
-            json_response = extract_information(parsed_text)
-            refined_text = trim_text(json_response)
-            final_text = clean_text(refined_text)
-            json_data = json.loads(final_text)
-            formatted_json = json.dumps(json_data, indent=4)
-            return formatted_json, 200
+    if filename_lower.endswith('.pdf'):
+        # For PDFs, extract text with both PDF reader and OCR
+        pdf_text = extract_text_from_pdf_file(file)
+        # Reset pointer again for OCR API (if needed)
+        file.seek(0)
+        ocr_result = ocr_post(ocr_api_key, file=file)
+        if ocr_result.get('OCRExitCode') == 1 and not ocr_result.get('IsErroredOnProcessing'):
+            ocr_text = ocr_result['ParsedResults'][0]['ParsedText']
+            # Combine the text from the PDF reader and OCR
+            combined_text = pdf_text + "\n" + ocr_text
         else:
-            return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown error')}), 500
+            return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown OCR error')}), 500
+
+    elif filename_lower.endswith(('.jpg', '.jpeg', '.png')):
+        # For image files, use only OCR
+        ocr_result = ocr_post(ocr_api_key, file=file)
+        if ocr_result.get('OCRExitCode') == 1 and not ocr_result.get('IsErroredOnProcessing'):
+            combined_text = ocr_result['ParsedResults'][0]['ParsedText']
+        else:
+            return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown OCR error')}), 500
     else:
-        return jsonify({'Error': 'Invalid file type. Please upload a PDF file.'}), 400
+        return jsonify({'Error': 'Invalid file type. Please upload a PDF or image file.'}), 400
+    
+    # Now pass the combined text to Gemini for context extraction
+    json_response = extract_information(combined_text)
+    refined_text = trim_text(json_response)
+    final_text = clean_text(refined_text)
+    try:
+        json_data = json.loads(final_text)
+    except json.JSONDecodeError:
+        return jsonify({"error": "Failed to decode JSON from Gemini response."}), 500
+    formatted_json = json.dumps(json_data, indent=4)
+    return formatted_json, 200
     
 # Route to generate and send OTP
 @bp.route('/send-otp/<phone_number>', methods=['GET'])

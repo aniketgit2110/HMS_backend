@@ -13,6 +13,7 @@ import requests
 from werkzeug.utils import secure_filename
 from io import BytesIO
 
+
 bp = Blueprint('connection', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -24,7 +25,6 @@ def verify_supabase_token(token):
     }
     response = requests.get(url, headers=headers)
     return response.json() if response.status_code == 200 else None
-
 
 # Utility function to interact with Supabase
 def execute_query(sql):
