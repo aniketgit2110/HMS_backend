@@ -1061,7 +1061,7 @@ def get_all_maps():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/get_health_guide', methods=['GET'])
+@bp.route('/get_health_guide', methods=['GET'])
 def get_health_guide():
     token = request.headers.get("Authorization")
     if not token:
