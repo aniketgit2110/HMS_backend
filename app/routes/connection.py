@@ -1061,6 +1061,34 @@ def get_all_maps():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/get_health_guide', methods=['GET'])
+def get_health_guide():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if not user_info:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        # Fetch all entries from the healthGuide table
+        response = supabase.table('healthGuide').select('*').execute()
+
+        # Check if there are no entries
+        if not response.data:
+            return jsonify({"message": "No health guide entries found"}), 404
+
+        health_guide_entries = response.data
+
+        return jsonify(health_guide_entries), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 
