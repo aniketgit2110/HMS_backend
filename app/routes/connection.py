@@ -1016,6 +1016,52 @@ def get_all_updates():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route('/get_all_maps', methods=['GET'])
+def get_all_maps():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+
+    token = token.split(" ")[1]
+    user_info = verify_supabase_token(token)
+
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        # Fetch all maps from the maps table
+        response = supabase.table('maps').select('*').execute()
+
+        # Check if there are no maps
+        if not response.data:
+            return jsonify({"message": "No maps found"}), 404
+
+        maps = response.data  # Get the data from the response
+        print(maps)
+
+        # Fetch hospital data for each map and bind it (hospital name and location)
+        for map_entry in maps:
+            hospital_id = map_entry.get('hospital_id')  # Get hospital_id from each map
+
+            # Fetch the hospital data using the hospital_id
+            hospital_result = supabase.table('hospitals').select('name', 'location').eq('id', hospital_id).execute()
+
+            if hospital_result.data:
+                hospital = hospital_result.data
+                # Bind hospital name and location to the map entry
+                map_entry['hospital_name'] = hospital[0]['name'] if hospital else 'Unknown Hospital'
+                map_entry['hospital_location'] = hospital[0]['location'] if hospital else 'Unknown Location'
+            else:
+                map_entry['hospital_name'] = 'Unknown Hospital'
+                map_entry['hospital_location'] = 'Unknown Location'
+
+        return jsonify(maps), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 
 
