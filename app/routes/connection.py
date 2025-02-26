@@ -130,8 +130,7 @@ def update_patient_verified():
     if not token:
         return jsonify({"error": "Authorization header is missing"}), 401
 
-    # Extract the token from the header
-    token = token.split(" ")[1]  # Get token from "Bearer <token>"
+    token = token.split(" ")[1]  # Extract token from "Bearer <token>"
     user_info = verify_supabase_token(token)
     
     if user_info is None:
@@ -144,23 +143,24 @@ def update_patient_verified():
         return jsonify({"error": "Patient ID is required"}), 400
 
     try:
-        # Query the patients table to check if the patient exists
+        # Check if the patient exists
         result = supabase.table('patients').select('*').eq('patient_id', patient_id).execute()
-        patient = result if isinstance(result, list) else result.data  # Adjust based on response type
+        patient = result.data  # Extract patient data
         
         if not patient:
             return jsonify({"message": "No patient found with the provided ID"}), 404
 
-        # Update the 'verified' field to true for the patient
+        # Update the 'verified' field
         update_result = supabase.table('patients').update({"verified": True}).eq('patient_id', patient_id).execute()
-        
-        if update_result.status_code == 200:
+
+        if update_result.data:  # Check if the update was successful
             return jsonify({"message": "Patient verified successfully"}), 200
         else:
             return jsonify({"error": "Failed to update patient verification status"}), 500
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @bp.route('/update_patient', methods=['PUT'])
