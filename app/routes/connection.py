@@ -1156,7 +1156,7 @@ def register_donor():
         "weight": data["weight"],
         "age": data["age"],
         "last_donation_date": data.get("last_donation_date"),
-        "current_medication": data.get("current_medication"),
+        "current_medications": data.get("current_medication"),
         "recent_vaccinations": data.get("recent_vaccinations"),
         "recent_travel_risk_area": data.get("recent_travel_risk_area"),
         "status": "pending",
