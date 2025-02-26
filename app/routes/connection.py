@@ -1129,6 +1129,77 @@ def get_health_guide():
 
 
 
+#donors endpoints
+@bp.route('/checkIfDonor', methods=['POST'])
+def check_if_donor():
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+    
+    response = supabase.table('donors').select('*').eq('patient_id', patient_id).execute()
+    
+    return jsonify({"is_donor": bool(response.data)}), 200
+
+@bp.route('/registerDonor', methods=['POST'])
+def register_donor():
+    data = request.json
+    
+    required_fields = ['patient_id', 'weight', 'age', 'last_donation_date', 'current_medication',
+                       'recent_vaccinations', 'recent_travel_risk_area']
+    
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    donor_data = {**data, "status": "pending", "can_donate": False}
+    
+    response = supabase.table('donors').insert(donor_data).execute()
+    
+    return jsonify(response.data), 201
+
+@bp.route('/fetchDonor', methods=['POST'])
+def fetch_donor():
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+    
+    response = supabase.table('donors').select('*').eq('patient_id', patient_id).execute()
+    
+    if not response.data:
+        return jsonify({"message": "No donor found."}), 404
+    
+    return jsonify(response.data), 200
+
+@bp.route('/updateDonor', methods=['POST'])
+def update_donor():
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+    
+    donor_data = {k: v for k, v in data.items() if k != 'patient_id'}
+    response = supabase.table('donors').update(donor_data).eq('patient_id', patient_id).execute()
+    
+    return jsonify(response.data), 200
+
+@bp.route('/removeDonor', methods=['POST'])
+def remove_donor():
+    data = request.json
+    patient_id = data.get('patient_id')
+    
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+    
+    response = supabase.table('donors').delete().eq('patient_id', patient_id).execute()
+    
+    return jsonify({"message": "Donor removed successfully."}), 200
+
+
+
 
 
 
