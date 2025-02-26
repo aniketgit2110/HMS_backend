@@ -1211,8 +1211,8 @@ def remove_donor():
 
 @bp.route('/fetchAllDonors', methods=['GET'])
 def fetch_all_donors():
-    # Fetch all donors from donors table
-    donors_response = supabase.table('donors').select('*').execute()
+    # Fetch all approved donors from donors table
+    donors_response = supabase.table('donors').select('*').eq('status', 'approved').execute()
     donors_data = donors_response.data
     
     if not donors_data:
