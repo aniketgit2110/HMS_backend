@@ -152,10 +152,15 @@ def clean_text(parsed_text):
 
 
 def extract_image_from_pdf(file, patient_id):
+    file.seek(0)  # Reset file pointer before reading
     file_bytes = file.read()
-    file.seek(0)
+    
+    if not file_bytes:
+        raise ValueError("Empty file stream detected.")
+    
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     image_bytes = None
+
     for page in doc:
         for img_index, img in enumerate(page.get_images(full=True)):
             xref = img[0]
@@ -164,13 +169,15 @@ def extract_image_from_pdf(file, patient_id):
             break
         if image_bytes:
             break
-    
+
     if image_bytes:
         file_path = f"ocr/{patient_id}.jpg"
         supabase.storage.from_('ocr').upload(file_path, BytesIO(image_bytes))
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/ocr/{patient_id}.jpg"
         return public_url
+    
     return None
+
 
 @bp.route('/upload', methods=['POST'])
 def upload_pdf():
@@ -227,7 +234,7 @@ def upload_pdf():
         refined_text = trim_text(json_response)
         final_text = clean_text(refined_text)
 
-        image_url = extract_image_from_pdf(file , patient_id)
+        image_url = extract_image_from_pdf(file_copy , patient_id)
         print('image')
         print(image_url)
         
