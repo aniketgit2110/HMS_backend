@@ -227,7 +227,9 @@ def upload_pdf():
         refined_text = trim_text(json_response)
         final_text = clean_text(refined_text)
 
-        image_url = extract_image_from_pdf(file , patinet_id)
+        image_url = extract_image_from_pdf(file , patient_id)
+        print('image')
+        print(image_url)
         
         try:
             json_data = json.loads(final_text)
