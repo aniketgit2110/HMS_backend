@@ -1209,9 +1209,25 @@ def remove_donor():
     return jsonify({"message": "Donor removed successfully."}), 200
 
 
-
-
-
-
-
-
+@bp.route('/fetchAllDonors', methods=['GET'])
+def fetch_all_donors():
+    # Fetch all donors from donors table
+    donors_response = supabase.table('donors').select('*').execute()
+    donors_data = donors_response.data
+    
+    if not donors_data:
+        return jsonify({"message": "No donors found."}), 404
+    
+    patient_ids = [donor['patient_id'] for donor in donors_data]
+    
+    # Fetch patient details for the donor patient_ids
+    patients_response = supabase.table('patients').select('patient_id, name, email, phone, address, medical_history, gender, blood_group, allergies, family_medical_history').in_('patient_id', patient_ids).execute()
+    patients_data = {patient['patient_id']: patient for patient in patients_response.data}
+    
+    # Merge donor data with patient details
+    merged_data = []
+    for donor in donors_data:
+        patient_info = patients_data.get(donor['patient_id'], {})
+        merged_data.append({**donor, **patient_info})
+    
+    return jsonify(merged_data), 200
