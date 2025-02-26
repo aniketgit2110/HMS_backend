@@ -1146,17 +1146,27 @@ def check_if_donor():
 def register_donor():
     data = request.json
     
-    required_fields = ['patient_id', 'weight', 'age', 'last_donation_date', 'current_medication',
-                       'recent_vaccinations', 'recent_travel_risk_area']
+    required_fields = ['patient_id', 'weight', 'age']
     
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Missing required fields"}), 400
     
-    donor_data = {**data, "status": "pending", "can_donate": False}
+    donor_data = {
+        "patient_id": data["patient_id"],
+        "weight": data["weight"],
+        "age": data["age"],
+        "last_donation_date": data.get("last_donation_date"),
+        "current_medication": data.get("current_medication"),
+        "recent_vaccinations": data.get("recent_vaccinations"),
+        "recent_travel_risk_area": data.get("recent_travel_risk_area"),
+        "status": "pending",
+        "can_donate": False
+    }
     
     response = supabase.table('donors').insert(donor_data).execute()
     
     return jsonify(response.data), 201
+
 
 @bp.route('/fetchDonor', methods=['POST'])
 def fetch_donor():
