@@ -151,74 +151,82 @@ def clean_text(parsed_text):
           return {'Error': 'Response blocked by safety filters.'}
 
 
+def extract_image_from_pdf(file, patient_id):
+    file_bytes = file.read()
+    file.seek(0)
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    image_bytes = None
+    for page in doc:
+        for img_index, img in enumerate(page.get_images(full=True)):
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base_image["image"]
+            break
+        if image_bytes:
+            break
+    
+    if image_bytes:
+        file_path = f"ocr/{patient_id}.jpg"
+        supabase.storage.from_('ocr').upload(file_path, BytesIO(image_bytes))
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/ocr/{patient_id}.jpg"
+        return public_url
+    return None
+
 @bp.route('/upload', methods=['POST'])
 def upload_pdf():
-    ocr_api_key = 'K86403013788957'
+    ocr_api_key = 'YOUR_OCR_API_KEY'
     token = request.headers.get('Authorization')
     if token:
         token = token.split(" ")[1]
         user_info = verify_supabase_token(token)
-        
         if user_info is None:
             return jsonify({"error": "Unauthorized"}), 401
-
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
     patient_id = request.args.get('patient_id')
     if not patient_id:
         return jsonify({"error": "Missing required field: patient_id"}), 400
-
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part in the request"}), 400
-
-    file = request.files['file']
+    
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-
+    
     filename_lower = file.filename.lower()
     if not (filename_lower.endswith('.pdf') or filename_lower.endswith(('.jpg', '.jpeg', '.png'))):
         return jsonify({'Error': 'Invalid file type. Please upload a PDF or image file.'}), 400
-
-    # Make a copy of the file to avoid stream issues
-    file_copy = BytesIO(file.read())
-    file.seek(0)
     
     try:
-            
-        # OCR processing
-        combined_text = ""
-        if filename_lower.endswith('.pdf'):
-            pdf_text = extract_text_from_pdf_file(file)
-            file.seek(0)
-            ocr_result = ocr_post(ocr_api_key, file=file)
-            if ocr_result.get('OCRExitCode') == 1 and not ocr_result.get('IsErroredOnProcessing'):
-                ocr_text = ocr_result['ParsedResults'][0]['ParsedText']
-                combined_text = pdf_text + "\n" + ocr_text
-            else:
-                return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown OCR error')}), 500
-        elif filename_lower.endswith(('.jpg', '.jpeg', '.png')):
-            ocr_result = ocr_post(ocr_api_key, file=file)
-            if ocr_result.get('OCRExitCode') == 1 and not ocr_result.get('IsErroredOnProcessing'):
-                combined_text = ocr_result['ParsedResults'][0]['ParsedText']
-            else:
-                return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown OCR error')}), 500
+        ocr_result = ocr_post(ocr_api_key, file)
+        image_url = extract_image_from_pdf(file, patient_id) if filename_lower.endswith('.pdf') else None
         
-        # Process text with Gemini
-        json_response = extract_information(combined_text)
-        refined_text = trim_text(json_response)
-        final_text = clean_text(refined_text)
-        
-        try:
-            json_data = json.loads(final_text)
-                
-        except json.JSONDecodeError:
-            return jsonify({"error": "Failed to decode JSON from Gemini response."}), 500
-            
-        formatted_json = json.dumps(json_data, indent=4)
-        return formatted_json, 200
-        
+        if ocr_result.get('OCRExitCode') == 1 and not ocr_result.get('IsErroredOnProcessing'):
+            parsed_text = ocr_result['ParsedResults'][0]['ParsedText']
+            json_response = extract_information(parsed_text)
+            final_text = trim_text(json_response)
+            return jsonify({"data": final_text, "image_url": image_url}), 200
+        else:
+            return jsonify({"Error": ocr_result.get('ErrorMessage', 'Unknown OCR error')}), 500
     except Exception as e:
-        print(f"Upload PDF error: {str(e)}")
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Route to generate and send OTP
 @bp.route('/send-otp/<phone_number>', methods=['GET'])
 def send_otp(phone_number):
