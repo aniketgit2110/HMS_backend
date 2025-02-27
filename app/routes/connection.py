@@ -1309,7 +1309,7 @@ def fetch_my_requests():
     return jsonify(merged_data), 200
 
 
-@app.route('/delete_request', methods=['DELETE'])
+@bp.route('/delete_request', methods=['DELETE'])
 def delete_request():
     data = request.json
 
