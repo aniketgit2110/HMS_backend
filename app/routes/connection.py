@@ -1275,7 +1275,7 @@ def send_request():
     }), 201
 
 
-
+#requests as receiver
 @bp.route('/fetch_my_requests', methods=['POST'])
 def fetch_my_requests():
     # Get receiver_id from request body
@@ -1307,6 +1307,40 @@ def fetch_my_requests():
         merged_data.append({**request_item, **patient_info})
     
     return jsonify(merged_data), 200
+
+#requests as donor
+@bp.route('/fetch_requests_to_me', methods=['POST'])
+def fetch_my_requests():
+    # Get receiver_id from request body
+    data = request.get_json()
+    receiver_id = data.get('donor_id')
+    
+    if not receiver_id:
+        return jsonify({"message": "Donor ID is required"}), 400
+    
+    # Fetch all requests for the given receiver_id from donor_requests table
+    requests_response = supabase.table('donor_requests').select('*').eq('donor_id', donor_id).execute()
+    requests_data = requests_response.data
+    
+    if not requests_data:
+        return jsonify({"message": "No requests found for this receiver."}), 404
+    
+    # Extract donor_ids from the requests
+    receiver_ids = [request['receiver_id'] for request in requests_data]
+    
+    # Fetch patient details for the donor_ids from patients table
+    patients_response = supabase.table('patients').select('patient_id, name, dob, gender, email, phone, address').in_('patient_id', receiver_ids).execute()
+    patients_data = {patient['patient_id']: patient for patient in patients_response.data}
+    
+    # Merge request data with patient details
+    merged_data = []
+    for request_item in requests_data:
+        receiver_id = request_item['receiver_id']
+        patient_info = patients_data.get(receiver_id, {})
+        merged_data.append({**request_item, **patient_info})
+    
+    return jsonify(merged_data), 200
+
 
 
 @bp.route('/delete_request', methods=['DELETE'])
