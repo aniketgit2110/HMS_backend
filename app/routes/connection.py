@@ -1307,3 +1307,28 @@ def fetch_my_requests():
         merged_data.append({**request_item, **patient_info})
     
     return jsonify(merged_data), 200
+
+
+@app.route('/delete_request', methods=['DELETE'])
+def delete_request():
+    data = request.json
+
+    required_fields = ['donor_id', 'receiver_id']
+    
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    # Delete the request from the table
+    response = (
+        supabase.table('donor_requests')
+        .delete()
+        .eq("donor_id", data["donor_id"])
+        .eq("receiver_id", data["receiver_id"])
+        .execute()
+    )
+
+    if response.data:
+        return jsonify({"message": "Request deleted successfully"}), 200
+    else:
+        return jsonify({"error": "Request not found"}), 404
+
