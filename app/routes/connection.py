@@ -1302,7 +1302,7 @@ def fetch_my_requests():
     donor_details = (
         supabase.table('patients')
         .select("id, name, gender, dob, email, address")
-        .in_("id", donor_ids)
+        .in_("patient_id", donor_ids)
         .execute()
     )
     
