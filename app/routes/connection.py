@@ -12,6 +12,7 @@ from app.config import SUPABASE_URL, SUPABASE_KEY
 import requests
 from werkzeug.utils import secure_filename
 from io import BytesIO
+from datetime import datetime, timezone
 
 
 bp = Blueprint('connection', __name__)
