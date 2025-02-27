@@ -1437,28 +1437,26 @@ def calculate_priority(severity):
         return 1
 
 # Endpoint to allocate a bed based on severity, patient-specific needs, and department load balancing
-@bp.route('/allocate_bed', methods=['POST'])  # Changed to POST method
+@bp.route('/allocate_bed', methods=['POST'])
 def allocate_bed():
-    # Retrieve data from the JSON body
     data = request.json
     patient_id = data.get('patient_id')
     severity = data.get('severity')
     equipment_needed = data.get('equipment', '').split(',')
     room_type_needed = data.get('room_type', 'shared')
     isolation_needed = data.get('isolation', 'False')
-    deallocate_date = data.get('deallocate_date')  # Deallocate date should be provided in ISO format (YYYY-MM-DD)
+    deallocate_date = data.get('deallocate_date')
+    current_date = data.get('current_date')  # Use the date from frontend
     
     try:
-        deallocate_datetime = datetime.fromisoformat(deallocate_date).date()  # Store only the date
+        deallocate_datetime = datetime.fromisoformat(deallocate_date).date()
+        current_date = datetime.fromisoformat(current_date).date()  # Convert to date format
     except ValueError:
-        return jsonify({'message': 'Invalid deallocation date format. Use YYYY-MM-DD format.'}), 400
+        return jsonify({'message': 'Invalid date format. Use YYYY-MM-DD format.'}), 400
     
-    severity_priority = calculate_priority(severity)  # Convert severity to priority weight
-    
-    # Fetch all available beds
+    severity_priority = calculate_priority(severity)
     beds = supabase.table('beds').select('*').eq('available', True).execute().data
 
-    # Try to find suitable beds based on patient-specific needs
     suitable_beds = [
         bed for bed in beds
         if priority_weights.get(bed['priority'], 1) >= severity_priority
@@ -1467,15 +1465,12 @@ def allocate_bed():
         and bed['isolation'] == isolation_needed
     ]
     
-    # If no suitable beds are found, allocate any available bed
     if not suitable_beds:
-        # If severity is high, prioritize beds close to ICU
         suitable_beds = sorted(beds, key=lambda x: (
-            0 if x['proximity'] == 'high' else 1,  # High proximity beds first
-            x['bed_id']  # Secondary sort by bed_id (arbitrary)
+            0 if x['proximity'] == 'high' else 1,  
+            x['bed_id']
         ))
 
-    # Sort suitable beds (if any were found) by priority and proximity
     suitable_beds.sort(key=lambda x: (
         priority_weights.get(x['priority'], 1), 
         proximity_weights.get(x['proximity'], 1), 
@@ -1484,33 +1479,22 @@ def allocate_bed():
 
     if suitable_beds:
         allocated_bed = suitable_beds[0]
-        # Mark the bed as occupied
-        supabase.table('beds').update({
-            'available': False
-        }).eq('bed_id', allocated_bed['bed_id']).execute()
-
-        # Insert into admissions table with allocation and deallocation date
-        current_date = datetime.now(UTC).date()  # Get only the current date
-        
-        # Ensure valid status values before insertion
-        valid_status = 'active'  # Ensure that 'active' is a valid status
-        if valid_status not in ['active', 'discharged']:  # Update this list based on your valid statuses
-            return jsonify({'message': 'Invalid admission status.'}), 400
+        supabase.table('beds').update({'available': False}).eq('bed_id', allocated_bed['bed_id']).execute()
 
         supabase.table('admissions').insert({
             'patient_id': patient_id,
             'bed_id': allocated_bed['bed_id'],
-            'admission_date': current_date.isoformat(),  # Convert to ISO format
-            'deallocate_date': deallocate_datetime.isoformat(),  # Convert to ISO format
-            'status': valid_status  # Admission status is 'active' during allocation
+            'admission_date': current_date.isoformat(),  # Use received date
+            'deallocate_date': deallocate_datetime.isoformat(),
+            'status': 'active'
         }).execute()
 
         return jsonify({
-            'message': f"Bed {allocated_bed['bed_id']} in {allocated_bed['department']} with priority {allocated_bed['priority']} "
-                       f"and proximity {allocated_bed['proximity']} has been allocated. It will be deallocated on {deallocate_datetime.isoformat()}."
+            'message': f"Bed {allocated_bed['bed_id']} allocated. Deallocates on {deallocate_datetime.isoformat()}."
         })
 
     return jsonify({'message': "No suitable beds available."}), 404
+
 
 # Function to deallocate beds after the specified date has passed
 def deallocate_beds():
