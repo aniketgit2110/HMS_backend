@@ -321,6 +321,7 @@ def detect_face():
     file_path = f'profile_pics/{new_filename}'
 
     try:
+        supabase.storage.from_('patient').remove([file_path])
         # Upload the cropped face image to Supabase storage (bucket: 'patient')
         upload_response = supabase.storage.from_('patient').upload(file_path, image_bytes)
         public_url_response = supabase.storage.from_('patient').get_public_url(file_path)
