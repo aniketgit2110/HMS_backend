@@ -1310,7 +1310,7 @@ def fetch_my_requests():
 
 #requests as donor
 @bp.route('/fetch_requests_to_me', methods=['POST'])
-def fetch_my_requests():
+def fetch_requests_to_me():
     # Get receiver_id from request body
     data = request.get_json()
     receiver_id = data.get('donor_id')
