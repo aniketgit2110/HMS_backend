@@ -1234,14 +1234,29 @@ def fetch_all_donors():
 
 
 #sending requests to donors
-@bp.route('/send_request', methods=['POST'])
+@bp.route('/send_donor_request', methods=['POST'])
 def send_request():
     data = request.json
     
-    required_fields = ['donor_id', 'receiver_id']
+    required_fields = ['donor_id', 'receiver_id', 'message']
     
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Missing required fields"}), 400
+    
+    # Check if a request already exists
+    existing_request = (
+        supabase.table('donor_requests')
+        .select("status")
+        .eq("donor_id", data["donor_id"])
+        .eq("receiver_id", data["receiver_id"])
+        .execute()
+    )
+    
+    if existing_request.data:
+        return jsonify({
+            "message": "Request already made",
+            "status": existing_request.data[0]["status"]
+        }), 409
     
     request_data = {
         "donor_id": data["donor_id"],
@@ -1254,4 +1269,8 @@ def send_request():
     
     response = supabase.table('donor_requests').insert(request_data).execute()
     
-    return jsonify(response.data), 201
+    return jsonify({
+        "message": "Request sent successfully",
+        "data": response.data
+    }), 201
+
