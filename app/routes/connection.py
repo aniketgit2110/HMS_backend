@@ -1592,10 +1592,10 @@ def get_department_beds():
         hospital_ids = {bed['hospital_id'] for bed in beds}
         
         # Fetch all relevant hospitals in a single query
-        hospitals_data = supabase.table('hospitals').select('hospital_id,name').in_('hospital_id', list(hospital_ids)).execute().data
+        hospitals_data = supabase.table('hospitals').select('id,name').in_('id', list(hospital_ids)).execute().data
         
         # Create a lookup dictionary for faster access
-        hospitals_dict = {hospital['hospital_id']: hospital for hospital in hospitals_data}
+        hospitals_dict = {hospital['id']: hospital for hospital in hospitals_data}
         
         # Merge hospital data with each bed
         for bed in beds:
@@ -1610,6 +1610,3 @@ def get_department_beds():
     
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
-
-
-
