@@ -1274,3 +1274,51 @@ def send_request():
         "data": response.data
     }), 201
 
+
+
+@bp.route('/fetchMyBloodRequests', methods=['GET'])
+def fetch_my_blood_requests():
+    receiver_id = request.args.get('receiver_id')
+    
+    if not receiver_id:
+        return jsonify({"error": "Receiver ID is required"}), 400
+    
+    # Fetch donor requests for the given receiver_id
+    donor_requests = (
+        supabase.table('donor_requests')
+        .select("*")
+        .eq("receiver_id", receiver_id)
+        .execute()
+    )
+    
+    if donor_requests.error:
+        return jsonify({"error": "Failed to fetch requests"}), 500
+    
+    requests_data = donor_requests.data
+    donor_ids = [request["donor_id"] for request in requests_data]
+    
+    if not donor_ids:
+        return jsonify({"requests": []}), 200
+    
+    # Fetch donor details from patients table
+    donors_info = (
+        supabase.table('patients')
+        .select("patient_id, name, gender, dob, email, phone, address")
+        .in_("patient_id", donor_ids)
+        .execute()
+    )
+    
+    if donors_info.error:
+        return jsonify({"error": "Failed to fetch donor details"}), 500
+    
+    donors_dict = {donor["patient_id"]: donor for donor in donors_info.data}
+    
+    # Merge donor details with request data
+    merged_data = []
+    for request in requests_data:
+        donor_id = request["donor_id"]
+        if donor_id in donors_dict:
+            merged_data.append({**request, **donors_dict[donor_id]})
+    
+    return jsonify({"requests": merged_data}), 200
+
