@@ -13,6 +13,9 @@ import google.generativeai as genai
 from sinch import SinchClient
 from app.config import SUPABASE_URL, SUPABASE_KEY
 import fitz  # PyMuPDF
+import cv2
+import numpy as np
+from werkzeug.utils import secure_filename
 
 bp = Blueprint('ocr', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -247,6 +250,98 @@ def upload_pdf():
     except Exception as e:
         print(f"Upload PDF error: {str(e)}")
         return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+@bp.route('/detect-face', methods=['POST'])
+def detect_face():
+    # Verify Authorization header
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"error": "Authorization header is missing"}), 401
+    token = token.split(" ")[1]  # Extract token from "Bearer <token>"
+    user_info = verify_supabase_token(token)
+    if user_info is None:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Ensure patient_id is provided as a query parameter
+    patient_id = request.args.get('patient_id')
+    if not patient_id:
+        return jsonify({"error": "Missing required field: patient_id"}), 400
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided."}), 400
+
+    file = request.files['file']
+    ext = file.filename.split('.')[-1].lower()
+
+    try:
+        # Process PDF: extract the first page as image
+        if ext == 'pdf':
+            file_bytes = file.read()
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            if doc.page_count == 0:
+                return jsonify({"error": "No pages found in the PDF."}), 400
+            page = doc[0]
+            pix = page.get_pixmap()
+            img_bytes = pix.tobytes("png")
+            npimg = np.frombuffer(img_bytes, np.uint8)
+            image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+            file_ext = "png"  # Use png extension for PDFs
+        else:
+            # Process image file (e.g., JPEG, PNG)
+            file_bytes = file.read()
+            npimg = np.frombuffer(file_bytes, np.uint8)
+            image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+            file_ext = ext
+    except Exception as e:
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+    if image is None:
+        return jsonify({"error": "Could not decode image."}), 400
+
+    # Convert image to grayscale for face detection.
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+    if len(faces) == 0:
+        return jsonify({"message": "No face detected."}), 200
+
+    # Crop the first detected face (you can adjust if multiple faces exist)
+    x, y, w, h = faces[0]
+    cropped_face = image[y:y+h, x:x+w]
+
+    # Encode the cropped face image as PNG
+    success, encoded_image = cv2.imencode('.png', cropped_face)
+    if not success:
+        return jsonify({"error": "Could not encode cropped face image."}), 500
+    image_bytes = encoded_image.tobytes()
+
+    # Create a secure filename using patient_id
+    new_filename = secure_filename(f"{patient_id}_aadharpic.png")
+    file_path = f'profile_pics/{new_filename}'
+
+    try:
+        # Upload the cropped face image to Supabase storage (bucket: 'patient')
+        upload_response = supabase.storage.from_('patient').upload(file_path, image_bytes)
+        public_url_response = supabase.storage.from_('patient').get_public_url(file_path)
+        if public_url_response and public_url_response.endswith('?'):
+            public_url_response = public_url_response[:-1]
+
+        # Update the patient's record with the cropped face URL (column: aadhar_pic_url)
+        update_response = supabase.table('patients').update({
+            'aadhar_pic_url': public_url_response
+        }).eq('patient_id', patient_id).execute()
+
+        if update_response.data:
+            return jsonify({
+                "message": "Cropped face image saved successfully",
+                "url": public_url_response
+            }), 200
+        else:
+            return jsonify({"error": "Patient not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
 
 
