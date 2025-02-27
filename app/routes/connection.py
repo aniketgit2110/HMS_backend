@@ -1573,3 +1573,43 @@ def get_beds_by_department():
 
 
 
+@bp.route('/department_beds', methods=['POST'])
+def get_department_beds():
+    data = request.get_json()
+    department = data.get('department')
+    
+    if not department:
+        return jsonify({'message': 'Department is required.'}), 400
+    
+    try:
+        # Fetch all beds in the specified department
+        beds = supabase.table('beds').select('*').eq('department', department).execute().data
+        
+        if not beds:
+            return jsonify({'message': f'No beds found in {department} department.'}), 404
+        
+        # Get unique hospital_ids from the beds
+        hospital_ids = {bed['hospital_id'] for bed in beds}
+        
+        # Fetch all relevant hospitals in a single query
+        hospitals_data = supabase.table('hospitals').select('hospital_id,name').in_('hospital_id', list(hospital_ids)).execute().data
+        
+        # Create a lookup dictionary for faster access
+        hospitals_dict = {hospital['hospital_id']: hospital for hospital in hospitals_data}
+        
+        # Merge hospital data with each bed
+        for bed in beds:
+            hospital_id = bed['hospital_id']
+            if hospital_id in hospitals_dict:
+                # Add hospital name to the bed data
+                bed['hospital_name'] = hospitals_dict[hospital_id]['name']
+            else:
+                bed['hospital_name'] = None
+        
+        return jsonify(beds), 200
+    
+    except Exception as e:
+        return jsonify({'message': f'Error: {str(e)}'}), 500
+
+
+
