@@ -13,7 +13,7 @@ import requests
 from werkzeug.utils import secure_filename
 from io import BytesIO
 from datetime import datetime, timezone
-
+from apscheduler.schedulers.background import BackgroundScheduler
 
 bp = Blueprint('connection', __name__)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
