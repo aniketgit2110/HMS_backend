@@ -1367,3 +1367,52 @@ def delete_request():
     else:
         return jsonify({"error": "Request not found"}), 404
 
+
+
+#approve and reject request
+
+@bp.route('/approve_request', methods=['POST'])
+def approve_request():
+    data = request.json
+    request_id = data.get("request_id")
+    
+    if not request_id:
+        return jsonify({"error": "Missing request ID"}), 400
+    
+    # Update request status to 'approved' and set can_call to True
+    response = (
+        supabase.table('donor_requests')
+        .update({"status": "approved", "can_call": True})
+        .eq("id", request_id)
+        .execute()
+    )
+    
+    if response.data:
+        return jsonify({"message": "Request approved successfully"}), 200
+    else:
+        return jsonify({"error": "Request not found or update failed"}), 404
+
+@bp.route('/reject_request', methods=['POST'])
+def reject_request():
+    data = request.json
+    request_id = data.get("request_id")
+    
+    if not request_id:
+        return jsonify({"error": "Missing request ID"}), 400
+    
+    # Update request status to 'rejected' and set can_call to False
+    response = (
+        supabase.table('donor_requests')
+        .update({"status": "rejected", "can_call": False})
+        .eq("id", request_id)
+        .execute()
+    )
+    
+    if response.data:
+        return jsonify({"message": "Request rejected successfully"}), 200
+    else:
+        return jsonify({"error": "Request not found or update failed"}), 404
+
+
+
+
