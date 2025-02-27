@@ -1414,5 +1414,118 @@ def reject_request():
         return jsonify({"error": "Request not found or update failed"}), 404
 
 
+#bed endpoints
+priority_weights = {'high': 3, 'medium': 2, 'low': 1}
+proximity_weights = {'high': 3, 'medium': 2, 'low': 1}
+
+def get_department_load(department):
+    total_beds = supabase.table('beds').select('bed_id').eq('department', department).execute().data
+    occupied_beds = supabase.table('beds').select('bed_id').eq('department', department).eq('available', False).execute().data
+    return len(occupied_beds) / len(total_beds) if total_beds else 1
+
+def calculate_priority(severity):
+    return priority_weights.get(severity.lower(), 1)
+
+@app.route('/allocate_bed', methods=['POST'])
+def allocate_bed():
+    data = request.json
+    patient_id = data.get('patient_id')
+    severity = data.get('severity')
+    equipment_needed = data.get('equipment', '').split(',')
+    room_type_needed = data.get('room_type', 'shared')
+    isolation_needed = data.get('isolation', 'False')
+    deallocate_date = data.get('deallocate_date')
+    
+    try:
+        deallocate_datetime = datetime.fromisoformat(deallocate_date).date()
+    except ValueError:
+        return jsonify({'message': 'Invalid deallocation date format. Use YYYY-MM-DD format.'}), 400
+    
+    severity_priority = calculate_priority(severity)
+    beds = supabase.table('beds').select('*').eq('available', True).execute().data
+
+    suitable_beds = [
+        bed for bed in beds
+        if priority_weights.get(bed['priority'], 1) >= severity_priority
+        and all(equip in (bed.get('equipment', '') or '').split(',') for equip in equipment_needed if equip)
+        and bed['room_type'] == room_type_needed
+        and bed['isolation'] == isolation_needed
+    ]
+    
+    if not suitable_beds:
+        suitable_beds = sorted(beds, key=lambda x: (
+            0 if x['proximity'] == 'high' else 1,
+            x['bed_id']
+        ))
+    
+    suitable_beds.sort(key=lambda x: (
+        priority_weights.get(x['priority'], 1), 
+        proximity_weights.get(x['proximity'], 1), 
+        get_department_load(x['department'])
+    ))
+
+    if suitable_beds:
+        allocated_bed = suitable_beds[0]
+        supabase.table('beds').update({'available': False}).eq('bed_id', allocated_bed['bed_id']).execute()
+        current_date = datetime.now(UTC).date()
+
+        supabase.table('admissions').insert({
+            'patient_id': patient_id,
+            'bed_id': allocated_bed['bed_id'],
+            'admission_date': current_date.isoformat(),
+            'deallocate_date': deallocate_datetime.isoformat(),
+            'status': 'active'
+        }).execute()
+
+        return jsonify({
+            'message': f"Bed {allocated_bed['bed_id']} allocated. Deallocated on {deallocate_datetime.isoformat()}"
+        })
+    
+    return jsonify({'message': "No suitable beds available."}), 404
+
+def deallocate_beds():
+    admissions = supabase.table('admissions').select('*').eq('status', 'active').execute().data
+    current_date = datetime.now(UTC).date()
+
+    for admission in admissions:
+        if 'deallocate_date' in admission:
+            deallocate_date = datetime.fromisoformat(admission['deallocate_date']).date()
+            if current_date >= deallocate_date:
+                supabase.table('beds').update({'available': True}).eq('bed_id', admission['bed_id']).execute()
+                supabase.table('admissions').update({
+                    'discharge_date': current_date.isoformat(),
+                    'status': 'discharged'
+                }).eq('bed_id', admission['bed_id']).eq('status', 'active').execute()
+
+def schedule_deallocation():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(deallocate_beds, 'interval', days=1, next_run_time=datetime.now(UTC))
+    scheduler.start()
+
+@app.route('/bed_status/<int:bed_id>', methods=['GET'])
+def bed_status(bed_id):
+    bed = supabase.table('beds').select('*').eq('bed_id', bed_id).execute().data
+    return jsonify(bed[0]) if bed else jsonify({'message': 'Bed not found.'}), 404
+
+@app.route('/available_beds', methods=['GET'])
+def available_beds():
+    beds = supabase.table('beds').select('*').execute().data
+    return jsonify(beds) if beds else jsonify({'message': 'No available beds found.'}), 404
+
+@app.route('/departments', methods=['GET'])
+def get_departments():
+    beds = supabase.table('beds').select('department').eq('available', True).execute().data
+    unique_departments = {bed['department'] for bed in beds}
+    return jsonify([{'department': dept} for dept in unique_departments]), 200
+
+@app.route('/beds', methods=['GET'])
+def get_beds_by_department():
+    department = request.args.get('department')
+    if not department:
+        return jsonify({'message': 'Department query parameter is required.'}), 400
+    beds = supabase.table('beds').select('*').eq('available', True).eq('department', department).execute().data
+    return jsonify(beds) if beds else jsonify([]), 500
+
+
 
 
