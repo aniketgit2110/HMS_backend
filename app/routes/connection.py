@@ -1231,3 +1231,27 @@ def fetch_all_donors():
         merged_data.append({**donor, **patient_info})
     
     return jsonify(merged_data), 200
+
+
+#sending requests to donors
+@bp.route('/send_request', methods=['POST'])
+def send_request():
+    data = request.json
+    
+    required_fields = ['donor_id', 'receiver_id']
+    
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    request_data = {
+        "donor_id": data["donor_id"],
+        "receiver_id": data["receiver_id"],
+        "message": data["message"],
+        "request_date": datetime.utcnow().isoformat(),  # Get current UTC time
+        "status": "pending",  # Default status
+        "can_call": False  # Default value
+    }
+    
+    response = supabase.table('donor_requests').insert(request_data).execute()
+    
+    return jsonify(response.data), 201
