@@ -1276,9 +1276,10 @@ def send_request():
 
 
 
-@bp.route('/fetchMyBloodRequests', methods=['GET'])
+@bp.route('/fetchMyBloodRequests', methods=['POST'])
 def fetch_my_blood_requests():
-    receiver_id = request.args.get('receiver_id')
+    data = request.json
+    receiver_id = data.get('receiver_id')
     
     if not receiver_id:
         return jsonify({"error": "Receiver ID is required"}), 400
@@ -1321,4 +1322,3 @@ def fetch_my_blood_requests():
             merged_data.append({**request, **donors_dict[donor_id]})
     
     return jsonify({"requests": merged_data}), 200
-
