@@ -1283,36 +1283,37 @@ def fetch_my_requests():
     if 'receiver_id' not in data:
         return jsonify({"error": "Missing receiver_id"}), 400
     
-    receiver_id = data['receiver_id']
+    receiver_id = data['receiver_id'].strip()
     
     # Fetch all donor requests for the given receiver_id
-    donor_requests = (
+    donor_requests_response = (
         supabase.table('donor_requests')
         .select("donor_id, status, can_call, request_date, message")
         .eq("receiver_id", receiver_id)
         .execute()
     )
     
-    if not donor_requests.data:
+    donor_requests_data = donor_requests_response.data
+    
+    if not donor_requests_data:
         return jsonify({"message": "No requests found", "data": []}), 200
     
-    donor_ids = [req["donor_id"] for req in donor_requests.data]
+    donor_ids = [donor['donor_id'] for donor in donor_requests_data]
     
     # Fetch donor details from patients table
-    donor_details = (
+    donor_details_response = (
         supabase.table('patients')
-        .select("id, name, gender, dob, email, address")
+        .select("patient_id, name, gender, dob, email, address")
         .in_("patient_id", donor_ids)
         .execute()
     )
     
-    donor_info_map = {donor["id"]: donor for donor in donor_details.data}
+    donor_details_data = {donor['patient_id']: donor for donor in donor_details_response.data}
     
-    # Merge donor details with requests
+    # Merge donor requests with donor details
     merged_requests = []
-    for req in donor_requests.data:
-        donor_id = req["donor_id"]
-        donor_info = donor_info_map.get(donor_id, {})
-        merged_requests.append({**req, "donor_info": donor_info})
+    for request in donor_requests_data:
+        donor_info = donor_details_data.get(request['donor_id'], {})
+        merged_requests.append({**request, **donor_info})
     
     return jsonify({"message": "Requests fetched successfully", "data": merged_requests}), 200
