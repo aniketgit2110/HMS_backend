@@ -1276,49 +1276,43 @@ def send_request():
 
 
 
-@bp.route('/fetchMyBloodRequests', methods=['POST'])
-def fetch_my_blood_requests():
+@bp.route('/fetch_my_requests', methods=['POST'])
+def fetch_my_requests():
     data = request.json
-    receiver_id = data.get('receiver_id')
     
-    if not receiver_id:
-        return jsonify({"error": "Receiver ID is required"}), 400
+    if 'receiver_id' not in data:
+        return jsonify({"error": "Missing receiver_id"}), 400
     
-    # Fetch donor requests for the given receiver_id
+    receiver_id = data['receiver_id']
+    
+    # Fetch all donor requests for the given receiver_id
     donor_requests = (
         supabase.table('donor_requests')
-        .select("*")
+        .select("donor_id, status, can_call, request_date, message")
         .eq("receiver_id", receiver_id)
         .execute()
     )
     
-    if donor_requests.error:
-        return jsonify({"error": "Failed to fetch requests"}), 500
+    if not donor_requests.data:
+        return jsonify({"message": "No requests found", "data": []}), 200
     
-    requests_data = donor_requests.data
-    donor_ids = [request["donor_id"] for request in requests_data]
-    
-    if not donor_ids:
-        return jsonify({"requests": []}), 200
+    donor_ids = [req["donor_id"] for req in donor_requests.data]
     
     # Fetch donor details from patients table
-    donors_info = (
+    donor_details = (
         supabase.table('patients')
-        .select("patient_id, name, gender, dob, email, phone, address")
-        .in_("patient_id", donor_ids)
+        .select("id, name, gender, dob, email, address")
+        .in_("id", donor_ids)
         .execute()
     )
     
-    if donors_info.error:
-        return jsonify({"error": "Failed to fetch donor details"}), 500
+    donor_info_map = {donor["id"]: donor for donor in donor_details.data}
     
-    donors_dict = {donor["patient_id"]: donor for donor in donors_info.data}
+    # Merge donor details with requests
+    merged_requests = []
+    for req in donor_requests.data:
+        donor_id = req["donor_id"]
+        donor_info = donor_info_map.get(donor_id, {})
+        merged_requests.append({**req, "donor_info": donor_info})
     
-    # Merge donor details with request data
-    merged_data = []
-    for request in requests_data:
-        donor_id = request["donor_id"]
-        if donor_id in donors_dict:
-            merged_data.append({**request, **donors_dict[donor_id]})
-    
-    return jsonify({"requests": merged_data}), 200
+    return jsonify({"message": "Requests fetched successfully", "data": merged_requests}), 200
