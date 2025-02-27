@@ -1311,24 +1311,24 @@ def fetch_my_requests():
 #requests as donor
 @bp.route('/fetch_requests_to_me', methods=['POST'])
 def fetch_requests_to_me():
-    # Get receiver_id from request body
+    # Get donor_id from request body
     data = request.get_json()
-    receiver_id = data.get('donor_id')
+    donor_id = data.get('donor_id')  # Corrected variable name
     
-    if not receiver_id:
+    if not donor_id:
         return jsonify({"message": "Donor ID is required"}), 400
     
-    # Fetch all requests for the given receiver_id from donor_requests table
+    # Fetch all requests for the given donor_id
     requests_response = supabase.table('donor_requests').select('*').eq('donor_id', donor_id).execute()
     requests_data = requests_response.data
     
     if not requests_data:
-        return jsonify({"message": "No requests found for this receiver."}), 404
+        return jsonify({"message": "No requests found for this donor."}), 404
     
-    # Extract donor_ids from the requests
+    # Extract receiver_ids from the requests
     receiver_ids = [request['receiver_id'] for request in requests_data]
     
-    # Fetch patient details for the donor_ids from patients table
+    # Fetch patient details for the receiver_ids
     patients_response = supabase.table('patients').select('patient_id, name, dob, gender, email, phone, address').in_('patient_id', receiver_ids).execute()
     patients_data = {patient['patient_id']: patient for patient in patients_response.data}
     
@@ -1340,6 +1340,7 @@ def fetch_requests_to_me():
         merged_data.append({**request_item, **patient_info})
     
     return jsonify(merged_data), 200
+
 
 
 
