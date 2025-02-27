@@ -1278,42 +1278,32 @@ def send_request():
 
 @bp.route('/fetch_my_requests', methods=['POST'])
 def fetch_my_requests():
-    data = request.json
+    # Get receiver_id from request body
+    data = request.get_json()
+    receiver_id = data.get('receiver_id')
     
-    if 'receiver_id' not in data:
-        return jsonify({"error": "Missing receiver_id"}), 400
+    if not receiver_id:
+        return jsonify({"message": "Receiver ID is required"}), 400
     
-    receiver_id = data['receiver_id'].strip()
+    # Fetch all requests for the given receiver_id from donor_requests table
+    requests_response = supabase.table('donor_requests').select('*').eq('receiver_id', receiver_id).execute()
+    requests_data = requests_response.data
     
-    # Fetch all donor requests for the given receiver_id
-    donor_requests_response = (
-        supabase.table('donor_requests')
-        .select("donor_id, status, can_call, request_date, message")
-        .eq("receiver_id", receiver_id)
-        .execute()
-    )
+    if not requests_data:
+        return jsonify({"message": "No requests found for this receiver."}), 404
     
-    donor_requests_data = donor_requests_response.data
+    # Extract donor_ids from the requests
+    donor_ids = [request['donor_id'] for request in requests_data]
     
-    if not donor_requests_data:
-        return jsonify({"message": "No requests found", "data": []}), 200
+    # Fetch patient details for the donor_ids from patients table
+    patients_response = supabase.table('patients').select('patient_id, name, dob, gender, email, phone, address').in_('patient_id', donor_ids).execute()
+    patients_data = {patient['patient_id']: patient for patient in patients_response.data}
     
-    donor_ids = [donor['donor_id'] for donor in donor_requests_data]
+    # Merge request data with patient details
+    merged_data = []
+    for request_item in requests_data:
+        donor_id = request_item['donor_id']
+        patient_info = patients_data.get(donor_id, {})
+        merged_data.append({**request_item, **patient_info})
     
-    # Fetch donor details from patients table
-    donor_details_response = (
-        supabase.table('patients')
-        .select("patient_id, name, gender, dob, email, address")
-        .in_("patient_id", donor_ids)
-        .execute()
-    )
-    
-    donor_details_data = {donor['patient_id']: donor for donor in donor_details_response.data}
-    
-    # Merge donor requests with donor details
-    merged_requests = []
-    for request in donor_requests_data:
-        donor_info = donor_details_data.get(request['donor_id'], {})
-        merged_requests.append({**request, **donor_info})
-    
-    return jsonify({"message": "Requests fetched successfully", "data": merged_requests}), 200
+    return jsonify(merged_data), 200
